@@ -12,11 +12,11 @@ Also requires FFmpeg from here if on Windows https://www.ffmpeg.org/download.htm
 
 ---------------------------------------
 
-The dll's for cuda are in the zip file and need to be copied to the folder where ctranslate2.dll is located. 
-
-Archive of the cuda files are here: https://developer.nvidia.com/rdp/cudnn-archive#a-collapse811-111 
+You might need to download cuda dll files directly. If you see an error message that references stranslate2.dll or cudnn_ops_infer64_8.dll then you need to do this.
 
 Instructions found here: https://github.com/SYSTRAN/faster-whisper/discussions/715 
+
+Archive of the cuda files are here: https://developer.nvidia.com/rdp/cudnn-archive#a-collapse811-111. Download the one for cudnn-11.2-windows-x64-v8.1.1.33.zip and then extract the dll's into the folder where ctranslate2.dll is located on your system.
 
 ---------------------------------------
 
