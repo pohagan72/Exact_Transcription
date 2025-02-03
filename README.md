@@ -1,12 +1,12 @@
 # Exact Transcription
 Creates an exact transcription from audio, including pauses and "ah" or "um" type statements
-
+---------------------------------------
+Index.html files goes into a subdirectory called Templates under the same location as the python file is placed.
+---------------------------------------
 Dependencies: pip install torch whisperx soundfile pyannote.audio flask numpy werkzeug huggingface_hub 
 
 Also requires FFmpeg from here if on Windows https://www.ffmpeg.org/download.html 
-
 ---------------------------------------
-
 The dll's for cuda are in the zip file and need to be copied to the folder where ctranslate2.dll is located. 
 
 Archive of the cuda files are here: https://developer.nvidia.com/rdp/cudnn-archive#a-collapse811-111 
