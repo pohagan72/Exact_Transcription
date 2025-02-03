@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio Transcription</title>
+  <style>
+    /* Basic reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+      padding: 20px;
+    }
+
+    /* Dark mode styles */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #222;
+        color: #eee;
+      }
+
+      .tile {
+        background-color: #333;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      input,
+      button,
+      textarea {
+        background-color: #444;
+        color: #eee;
+        border: 1px solid #555;
+      }
+
+      .transcript {
+        background-color: #444;
+        border-color: #555;
+      }
+    }
+
+    .tile {
+      background-color: #fff;
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%;
+      max-width: 600px; /* Increased max-width for better readability on larger screens */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #2c3e50;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    input[type="file"] {
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    button {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(to right, #4a90e2, #63b8ff); /* Gradient button */
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    button:hover {
+      background: linear-gradient(to right, #3577c9, #4da6e6); /* Darker gradient on hover */
+    }
+
+    .transcript {
+      margin-top: 20px;
+      white-space: pre-line;
+      text-align: left;
+      max-height: 400px; /* Increased max-height */
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #fefefe;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6; /* Improved line height for readability */
+    }
+
+    .transcript h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+
+    .error {
+      color: #e74c3c;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #fdedec;
+      border: 1px solid #e74c3c;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="tile">
+    <h1>Audio Transcription</h1>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="error">
+      {% for message in messages %}
+      <p>{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <form method="POST" enctype="multipart/form-data" aria-label="Audio Transcription Form">
+      <input type="file" name="audio_file" accept="audio/*" required aria-label="Choose audio file">
+      <button type="submit">Upload and Transcribe</button>
+    </form>
+    {% if transcript %}
+    <div class="transcript">
+      <h2>Transcript:</h2>
+      <p>{{ transcript }}</p>
+    </div>
+    {% endif %}
+  </div>
+</body>
+
+</html>
