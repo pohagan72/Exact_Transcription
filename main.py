@@ -1,142 +1,236 @@
-# Importing necessary libraries and modules
-import os  # For interacting with the operating system
-import torch  # PyTorch library for deep learning, used here for GPU support
-import whisperx  # WhisperX for speech recognition and alignment
-import soundfile as sf  # For handling audio files
-import logging  # For logging errors and information
-from pyannote.audio import Pipeline  # PyAnnote library for speaker diarization
-from flask import Flask, render_template, request, redirect, url_for, flash  # Flask modules for building the web app
-import numpy as np  # For numerical operations (not used directly here, but imported)
-from werkzeug.utils import secure_filename  # For securely handling uploaded file names
+import os
+import time
+import logging
+import psutil
+import torch
+import whisperx
+import soundfile as sf
+import librosa
+import numpy as np
+from flask import Flask, render_template, request, redirect, url_for, flash, g, current_app
+from werkzeug.utils import secure_filename
+from pyannote.audio import Pipeline
+import threading
+from flask import copy_current_request_context
+from pydub import AudioSegment  # New import for conversion
 
-# Setting up logging for debugging and monitoring the application
-logging.basicConfig(level=logging.INFO)
+# --------------------------------------------------------------------------
+# Logging Configuration
+# --------------------------------------------------------------------------
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initializing the Flask app
-app = Flask(__name__)
+# --------------------------------------------------------------------------
+# CUDA Device Detection
+# --------------------------------------------------------------------------
+def get_cuda_device():
+    if torch.cuda.is_available():
+        device = "cuda"
+        logger.info("CUDA is available. Using GPU.")
+    else:
+        device = "cpu"
+        logger.info("CUDA is not available. Using CPU.")
+    return device
 
-# Setting the Flask secret key for session management and flash messages
-# You should replace the default value with a secure, randomly generated string in production
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "replace_this_with_a_secure_random_string")
+# --------------------------------------------------------------------------
+# Convert Input Audio to WAV (if necessary)
+# --------------------------------------------------------------------------
+def convert_to_wav(input_path):
+    try:
+        file_root, file_ext = os.path.splitext(input_path)
+        wav_path = file_root + ".wav"
+        audio = AudioSegment.from_file(input_path)  # This uses FFmpeg in the background.
+        audio.export(wav_path, format="wav")
+        logger.info(f"Converted {input_path} to WAV format: {wav_path}")
+        return wav_path
+    except Exception as e:
+        logger.error(f"Error converting file to WAV: {str(e)}")
+        raise
 
-# Configuration for the app
-HF_TOKEN = os.environ.get("HF_TOKEN", "Your_HF_Token_Goes_Here")  # Hugging Face token for PyAnnote
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg', 'flac'}  # Supported audio file formats
-UPLOAD_FOLDER = 'temp'  # Temporary folder to store uploaded files
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Create the upload folder if it doesn't exist
+# --------------------------------------------------------------------------
+# Audio Chunking Function
+# --------------------------------------------------------------------------
+def chunk_audio(audio_path, chunk_duration=300):  # Chunk duration in seconds (5 minutes)
+    try:
+        y, sr = librosa.load(audio_path, sr=None)
+        chunk_size = chunk_duration * sr
+        chunks = []
+        for i in range(0, len(y), chunk_size):
+            chunk = y[i:i + chunk_size]
+            chunk_filename = os.path.join(UPLOAD_FOLDER, f"chunk_{i // chunk_size}.wav")
+            sf.write(chunk_filename, chunk, sr)  # Write the chunk as proper WAV
+            chunks.append(chunk_filename)
+        return chunks
+    except Exception as e:
+        logger.error(f"Error during audio chunking: {str(e)}")
+        raise
 
-# Helper function to check if a file has an allowed extension
+# --------------------------------------------------------------------------
+# System Usage Logging Function
+# --------------------------------------------------------------------------
+def log_system_usage():
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_usage = psutil.virtual_memory().percent
+    logger.info(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%")
+
+# --------------------------------------------------------------------------
+# Allowed File Type Check
+# --------------------------------------------------------------------------
+ALLOWED_EXTENSIONS = {'mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Helper function to determine the best processing device (CUDA GPU or CPU)
-def get_cuda_device():
-    if torch.cuda.is_available():  # Check if CUDA-compatible GPU is available
-        device_count = torch.cuda.device_count()
-        if device_count > 0:
-            return "cuda"  # Use GPU if available
-    return "cpu"  # Fall back to CPU if no GPU is available
+# --------------------------------------------------------------------------
+# Flask App Configuration
+# --------------------------------------------------------------------------
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "replace_this_with_a_secure_random_string")
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB
 
-# Main function for transcribing and diarizing an audio file
-def transcribe_and_diarize(audio_file_path, device=None):
-    # If no device is specified, determine the appropriate device
-    if device is None:
-        device = get_cuda_device()
+UPLOAD_FOLDER = 'temp'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# --------------------------------------------------------------------------
+# Model Loading and Reuse in Request Context
+# --------------------------------------------------------------------------
+def load_whisper_model(device):
+    model = whisperx.load_model("large-v2", device)
+    logger.info("Whisper model loaded.")
+    return model
+
+def load_diarization_pipeline(device):
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.0",
+        use_auth_token="HF_Token_Goes_Here"
+    ).to(torch.device(device))
+    logger.info("Diarization pipeline loaded.")
+    return pipeline
+
+# --------------------------------------------------------------------------
+# Custom Timeout Mechanism
+# --------------------------------------------------------------------------
+class TimeoutError(Exception):
+    pass
+
+def timeout(seconds):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            result = [None]
+            exception = [None]
+
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    exception[0] = e
+
+            thread = threading.Thread(target=target)
+            thread.start()
+            thread.join(seconds)
+
+            if thread.is_alive():
+                raise TimeoutError(f"Function timed out after {seconds} seconds")
+            if exception[0] is not None:
+                raise exception[0]
+            return result[0]
+        return wrapper
+    return decorator
+
+# --------------------------------------------------------------------------
+# Main Function for Transcription and Diarization
+# --------------------------------------------------------------------------
+@timeout(3600)  # 1-hour timeout
+def transcribe_and_diarize(audio_file_path, device, whisper_model, diarization_pipeline):
+    log_system_usage()
+
+    chunks = chunk_audio(audio_file_path)
+    full_transcript = []
 
     try:
-        # Step 1: Load the WhisperX model for transcription
-        model = whisperx.load_model("large-v2", device)  # Load a large WhisperX model
-        audio = whisperx.load_audio(audio_file_path)  # Load the audio file for processing
-        result = model.transcribe(audio, batch_size=16)  # Perform transcription
+        for chunk_path in chunks:
+            logger.info(f"Processing chunk: {chunk_path}")
+            audio = whisperx.load_audio(chunk_path)
+            result = whisper_model.transcribe(audio, batch_size=16)
 
-        # Step 2: Align transcription with timestamps
-        model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
-        result = whisperx.align(result["segments"], model_a, metadata, audio, device)
+            model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
+            result = whisperx.align(result["segments"], model_a, metadata, audio, device)
 
-        # Step 3: Load the PyAnnote speaker diarization pipeline
-        diarization_pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.0",  # Pretrained diarization model
-            use_auth_token=HF_TOKEN  # Authentication token for Hugging Face
-        ).to(torch.device(device))  # Use the specified device (GPU/CPU)
+            diarization = diarization_pipeline(chunk_path)
 
-        # Step 4: Perform speaker diarization on the audio file
-        diarization = diarization_pipeline(audio_file_path)
-
-        # Step 5: Combine transcription with speaker information
-        diarized_segments = []
-        for segment in result["segments"]:
-            segment_start = segment["start"]  # Start time of the segment
-            segment_end = segment["end"]  # End time of the segment
-            
-            # Determine the dominant speaker for the segment
-            speaker_times = {}  # Dictionary to track speaking duration for each speaker
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
-                if turn.start <= segment_end and turn.end >= segment_start:  # Check for overlap
-                    overlap = min(turn.end, segment_end) - max(turn.start, segment_start)
-                    if overlap > 0:
-                        speaker_times[speaker] = speaker_times.get(speaker, 0) + overlap
-            
-            # Assign the speaker with the most overlap during the segment
-            if speaker_times:
-                dominant_speaker = max(speaker_times.items(), key=lambda x: x[1])[0]
-            else:
-                dominant_speaker = "Unknown Speaker"  # Default label if no speaker is found
-
-            # Format the segment with speaker information
-            diarized_segments.append(
-                f"[{segment_start:.2f}-{segment_end:.2f}] {dominant_speaker}: {segment['text']}"
-            )
-
-        # Return the combined transcription and diarization as a single string
-        return "\n".join(diarized_segments)
-
+            for segment in result["segments"]:
+                segment_start = segment["start"]
+                segment_end = segment["end"]
+                speaker_times = {}
+                for turn, _, speaker in diarization.itertracks(yield_label=True):
+                    if turn.start <= segment_end and turn.end >= segment_start:
+                        overlap = min(turn.end, segment_end) - max(turn.start, segment_start)
+                        if overlap > 0:
+                            speaker_times[speaker] = speaker_times.get(speaker, 0) + overlap
+                dominant_speaker = max(speaker_times.items(), key=lambda x: x[1])[0] if speaker_times else "Unknown Speaker"
+                formatted_segment = f"[{segment_start:.2f}-{segment_end:.2f}] {dominant_speaker}: {segment['text']}"
+                full_transcript.append(formatted_segment)
     except Exception as e:
-        # Log and raise any errors encountered during processing
         logger.error(f"Error during processing: {str(e)}")
         raise RuntimeError(f"Error during processing: {str(e)}")
+    finally:
+        # Clean up chunk files
+        for chunk_path in chunks:
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
 
-# Flask route for the main page (handles both GET and POST requests)
+    return "\n".join(full_transcript)
+
+# --------------------------------------------------------------------------
+# Flask Routes
+# --------------------------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
+    transcript = None
+    whisper_model = None
+    diarization_pipeline = None
     if request.method == "POST":
-        # Check if an audio file was uploaded
         if "audio_file" not in request.files:
-            flash("No file selected!")  # Display an error message to the user
-            return redirect(request.url)  # Reload the page
-
-        file = request.files["audio_file"]  # Retrieve the uploaded file
+            flash("No file selected!")
+            return redirect(request.url)
+        file = request.files["audio_file"]
         if file.filename == "":
-            flash("No file selected!")  # Check if the file has a name
+            flash("No file selected!")
             return redirect(request.url)
-
-        # Validate the file type
         if not allowed_file(file.filename):
-            flash("Invalid file type!")  # Display an error message for unsupported file types
+            flash("Invalid file type! Allowed types are: mp3, mp4, mpeg, mpga, m4a, wav, webm")
             return redirect(request.url)
 
-        # Save the uploaded file securely to the temporary folder
-        filename = secure_filename(file.filename)  # Sanitize the filename
-        temp_path = os.path.join(UPLOAD_FOLDER, filename)  # Full path to save the file
-        file.save(temp_path)  # Save the file
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(temp_path)
 
         try:
-            # Transcribe and diarize the uploaded audio file
-            transcript = transcribe_and_diarize(temp_path)
+            # Load models in the context of the request
+            device = get_cuda_device()
+            whisper_model = load_whisper_model(device)
+            diarization_pipeline = load_diarization_pipeline(device)
+
+            # If the file is not a WAV, convert it first.
+            processed_path = temp_path
+            if not filename.lower().endswith(".wav"):
+                processed_path = convert_to_wav(temp_path)
+
+            transcript = transcribe_and_diarize(processed_path, device, whisper_model, diarization_pipeline)
+        except TimeoutError:
+            transcript = "Processing timed out. Please try again with a smaller file."
         except Exception as e:
-            # Handle any errors that occur during processing
             transcript = f"An error occurred: {str(e)}"
         finally:
-            # Clean up by removing the temporary file
+            # Remove both the original and converted files if they exist.
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+            if processed_path != temp_path and os.path.exists(processed_path):
+                os.remove(processed_path)
 
-        # Render the result page with the generated transcript
-        return render_template("index.html", transcript=transcript)
+    return render_template("index.html", transcript=transcript)
 
-    # Render the main page for GET requests
-    return render_template("index.html")
-
-# Run the Flask app in debug mode
+# --------------------------------------------------------------------------
+# Run the Flask App
+# --------------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
