@@ -2,7 +2,7 @@
 Creates an exact transcription from audio, including pauses and "ah" or "um" type statements
 ---------------------------------------
 
-Index.html files goes into a subdirectory called Templates under the same location as the python file is placed.
+Index.html file goes into a subdirectory called Templates under the same location as the python file is placed.
 
 ---------------------------------------
 
