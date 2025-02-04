@@ -1,159 +1,297 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="">
-
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Audio Transcription</title>
-  <style>
-    /* Basic reset */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcription</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
 
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
-        "Helvetica Neue", sans-serif;
-      background-color: #f9f9f9;
-      color: #333;
-      transition: background-color 0.3s, color 0.3s;
-      padding: 20px;
-    }
+        body.dark-mode {
+            background: linear-gradient(135deg, #333, #000);
+            color: #fff;
+        }
 
-    /* Dark mode styles */
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: #222;
-        color: #eee;
-      }
+        .app-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative; /* For positioning the info icon */
+        }
 
-      .tile {
-        background-color: #333;
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
-      }
+        .dark-mode .app-card {
+            background: #444;
+            color: #fff;
+        }
 
-      input,
-      button,
-      textarea {
-        background-color: #444;
-        color: #eee;
-        border: 1px solid #555;
-      }
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
 
-      .transcript {
-        background-color: #444;
-        border-color: #555;
-      }
-    }
+        .app-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
 
-    .tile {
-      background-color: #fff;
-      border-radius: 15px;
-      padding: 30px;
-      width: 100%;
-      max-width: 600px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
+        .dark-mode .app-card h3 {
+            color: #fff;
+        }
 
-    h1 {
-      margin-bottom: 20px;
-      font-size: 28px;
-      color: #2c3e50;
-    }
+        .app-card p {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
 
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
+        .dark-mode .app-card p {
+            color: #ccc;
+        }
 
-    input[type="file"] {
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #f5f5f5;
-      color: #333;
-    }
+        .app-card .btn-container {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically */
+            align-items: center;
+            gap: 10px; /* Space between buttons */
+        }
 
-    button {
-      padding: 14px 24px;
-      border: none;
-      border-radius: 8px;
-      background: linear-gradient(to right, #4a90e2, #63b8ff);
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }
+        .app-card .btn-row {
+            display: flex;
+            gap: 10px; /* Space between "View Demo" and "Test File" buttons */
+        }
 
-    button:hover {
-      background: linear-gradient(to right, #3577c9, #4da6e6);
-    }
+        .app-card a.launch {
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            background: transparent;
+            color: #007bff;
+            border: 2px solid #007bff; /* Blue outline */
+        }
 
-    .transcript {
-      margin-top: 20px;
-      white-space: pre-line;
-      text-align: left;
-      max-height: 400px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 20px;
-      background-color: #fefefe;
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.6;
-    }
+        .app-card a.launch:hover {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
 
-    .transcript h2 {
-      font-size: 18px;
-      margin-bottom: 10px;
-      color: #2c3e50;
-    }
+        .app-card a.view-demo {
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            background: transparent;
+            color: #28a745; /* Green color for demo button */
+            border: 2px solid #28a745; /* Green outline */
+        }
 
-    .error {
-      color: #e74c3c;
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #fdedec;
-      border: 1px solid #e74c3c;
-      border-radius: 5px;
-    }
-  </style>
+        .app-card a.view-demo:hover {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+
+        .app-card a.test-file {
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            background: transparent;
+            color: #ffc107; /* Yellow color for test file button */
+            border: 2px solid #ffc107; /* Yellow outline */
+        }
+
+        .app-card a.test-file:hover {
+            background: #ffc107;
+            color: black;
+            border-color: #ffc107;
+        }
+
+        .app-card .info-icon {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+            z-index: 1100; /* Ensure icon is above tooltip */
+        }
+
+        .dark-mode .app-card .info-icon {
+            color: #ccc;
+        }
+
+        .app-card .info-icon:hover {
+            color: #007bff; /* Change color on hover */
+        }
+
+        /* Renamed to avoid conflict with Bootstrap */
+        .app-card .custom-tooltip {
+            display: none;
+            position: absolute;
+            top: 40px; /* Position below the info icon */
+            right: 15px;
+            background-color: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            white-space: nowrap; /* Prevent text from wrapping */
+        }
+
+        .dark-mode .app-card .custom-tooltip {
+            background-color: #555;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .dark-mode .header h1 {
+            color: #fff;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .dark-mode .header p {
+            color: #ccc;
+        }
+
+        /* Ensure the modal background is opaque */
+        .modal-content {
+            background-color: rgba(0, 0, 0, 0.9) !important;
+            z-index: 1200;
+        }
+
+        .modal-body {
+            padding: 0;
+        }
+
+        .modal-body video {
+            width: 100%;
+            height: auto;
+            background-color: black;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="tile">
-    <h1>Audio Transcription</h1>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <div class="error">
-      {% for message in messages %}
-      <p>{{ message }}</p>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
-    <form method="POST" enctype="multipart/form-data" aria-label="Audio Transcription Form">
-      <input type="file" name="audio_file" accept="audio/*" required aria-label="Choose audio file">
-      <button type="submit">Upload and Transcribe</button>
-    </form>
-    {% if transcript %}
-    <div class="transcript">
-      <h2>Transcript:</h2>
-      <p>{{ transcript }}</p>
-    </div>
-    {% endif %}
-  </div>
-</body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Audio Transcription</h1>
+            <p>Upload an audio file to transcribe and diarize it.</p>
+        </div>
 
+        <!-- App Cards -->
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="app-card">
+                    {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                    <div class="error">
+                        {% for message in messages %}
+                        <p>{{ message }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    <form method="POST" enctype="multipart/form-data" aria-label="Audio Transcription Form">
+                        <input type="file" name="audio_file" accept="audio/*" required aria-label="Choose audio file">
+                        <button type="submit" class="launch">Upload and Transcribe</button>
+                    </form>
+                    <a href="{{ url_for('download_transcript') }}" class="download-button">Download Transcript</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleTooltip(icon) {
+            const tooltip = icon.nextElementSibling;
+
+            if (tooltip.style.display === 'block') {
+                tooltip.style.display = 'none';
+            } else {
+                document.querySelectorAll('.custom-tooltip').forEach((t) => {
+                    t.style.display = 'none';
+                });
+                tooltip.style.display = 'block';
+            }
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.classList.contains('info-icon')) {
+                document.querySelectorAll('.custom-tooltip').forEach((tooltip) => {
+                    tooltip.style.display = 'none';
+                });
+            }
+        });
+
+        const body = document.body;
+        const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDarkMode) {
+            body.classList.add('dark-mode');
+        } else {
+            body.classList.remove('dark-mode');
+        }
+
+        // Auto-play video when modal is shown
+        var videoModal = document.getElementById('videoModal');
+        videoModal.addEventListener('shown.bs.modal', function () {
+            var videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.play();
+        });
+
+        // Reset video when modal is hidden
+        videoModal.addEventListener('hidden.bs.modal', function () {
+            var videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.pause();
+            videoPlayer.currentTime = 0;
+        });
+    </script>
+</body>
 </html>
