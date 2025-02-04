@@ -7,11 +7,12 @@ import whisperx
 import soundfile as sf
 import librosa
 import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session
 from werkzeug.utils import secure_filename
 from pyannote.audio import Pipeline
 from pydub import AudioSegment  # For audio conversion
 from tqdm import tqdm  # Import tqdm for progress tracking
+import io  # Import the io module
 
 # --------------------------------------------------------------------------
 # Logging Configuration
@@ -100,7 +101,7 @@ def load_whisper_model(device):
 def load_diarization_pipeline(device):
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.0",
-        use_auth_token="HF_Key_goes_here"
+        use_auth_token="Key_Goes_Here"
     ).to(torch.device(device))
     logger.info("Diarization pipeline loaded.")
     return pipeline
@@ -150,48 +151,70 @@ def transcribe_and_diarize(audio_file_path, device, whisper_model, diarization_p
 # --------------------------------------------------------------------------
 # Flask Routes
 # --------------------------------------------------------------------------
+
 @app.route("/", methods=["GET", "POST"])
 def index():
-    transcript = None
-    whisper_model = None
-    diarization_pipeline = None
     if request.method == "POST":
         if "audio_file" not in request.files:
-            flash("No file selected!")
-            return redirect(request.url)
-        file = request.files["audio_file"]
-        if file.filename == "":
-            flash("No file selected!")
-            return redirect(request.url)
-        if not allowed_file(file.filename):
-            flash("Invalid file type! Allowed types are: mp3, mp4, mpeg, mpga, m4a, wav, webm")
+            flash("No file selected!", "error")  # Use a category for flash messages
             return redirect(request.url)
 
-        filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(temp_path)
+        audio_file = request.files["audio_file"]
+        if audio_file.filename == "":
+            flash("No file selected!", "error")
+            return redirect(request.url)
+
+        if not allowed_file(audio_file.filename):
+            flash("Invalid file type! Allowed types are: mp3, mp4, mpeg, mpga, m4a, wav, webm", "error")
+            return redirect(request.url)
 
         try:
+            filename = secure_filename(audio_file.filename)
+            temp_audio_path = os.path.join(UPLOAD_FOLDER, filename)
+            audio_file.save(temp_audio_path)
+
             device = get_cuda_device()
             whisper_model = load_whisper_model(device)
             diarization_pipeline = load_diarization_pipeline(device)
 
-            processed_path = temp_path
+            processed_audio_path = temp_audio_path
             if not filename.lower().endswith(".wav"):
-                processed_path = convert_to_wav(temp_path)
+                processed_audio_path = convert_to_wav(temp_audio_path)
 
-            transcript = transcribe_and_diarize(processed_path, device, whisper_model, diarization_pipeline)
+            transcript = transcribe_and_diarize(processed_audio_path, device, whisper_model, diarization_pipeline)
+            session['transcript'] = transcript # Store the transcript in the session
+
+            return redirect(url_for('download_transcript'))
+
         except RuntimeError as e:
-            transcript = f"An error occurred: {str(e)}"
+            flash(f"An error occurred during processing: {str(e)}", "error")
+            logger.exception("Transcription/Diarization Error:") # Log the full exception
         except Exception as e:
-            transcript = f"An unexpected error occurred: {str(e)}"
+            flash(f"An unexpected error occurred: {str(e)}", "error")
+            logger.exception("Unexpected Error:") # Log the full exception
         finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            if processed_path != temp_path and os.path.exists(processed_path):
-                os.remove(processed_path)
+            # Clean up temporary files, regardless of success or failure
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+            if 'processed_audio_path' in locals() and processed_audio_path != temp_audio_path and os.path.exists(processed_audio_path):
+                os.remove(processed_audio_path)
 
-    return render_template("index.html", transcript=transcript)
+    return render_template("index.html")
+
+@app.route("/download")
+def download_transcript():
+    transcript = session.get('transcript', None)
+    if transcript:
+        transcript_io = io.BytesIO(transcript.encode('utf-8'))
+        return send_file(
+            transcript_io,
+            mimetype="text/plain",
+            as_attachment=True,
+            download_name="transcript.txt"
+        )
+    else:
+        flash("No transcript available for download.", "error")
+        return redirect(url_for('index'))
 
 # --------------------------------------------------------------------------
 # Run the Flask App
