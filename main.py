@@ -7,12 +7,11 @@ import whisperx
 import soundfile as sf
 import librosa
 import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, flash, g, current_app
+from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from pyannote.audio import Pipeline
-import threading
-from flask import copy_current_request_context
-from pydub import AudioSegment  # New import for conversion
+from pydub import AudioSegment  # For audio conversion
+from tqdm import tqdm  # Import tqdm for progress tracking
 
 # --------------------------------------------------------------------------
 # Logging Configuration
@@ -39,7 +38,7 @@ def convert_to_wav(input_path):
     try:
         file_root, file_ext = os.path.splitext(input_path)
         wav_path = file_root + ".wav"
-        audio = AudioSegment.from_file(input_path)  # This uses FFmpeg in the background.
+        audio = AudioSegment.from_file(input_path)
         audio.export(wav_path, format="wav")
         logger.info(f"Converted {input_path} to WAV format: {wav_path}")
         return wav_path
@@ -50,7 +49,7 @@ def convert_to_wav(input_path):
 # --------------------------------------------------------------------------
 # Audio Chunking Function
 # --------------------------------------------------------------------------
-def chunk_audio(audio_path, chunk_duration=300):  # Chunk duration in seconds (5 minutes)
+def chunk_audio(audio_path, chunk_duration=300):
     try:
         y, sr = librosa.load(audio_path, sr=None)
         chunk_size = chunk_duration * sr
@@ -58,7 +57,7 @@ def chunk_audio(audio_path, chunk_duration=300):  # Chunk duration in seconds (5
         for i in range(0, len(y), chunk_size):
             chunk = y[i:i + chunk_size]
             chunk_filename = os.path.join(UPLOAD_FOLDER, f"chunk_{i // chunk_size}.wav")
-            sf.write(chunk_filename, chunk, sr)  # Write the chunk as proper WAV
+            sf.write(chunk_filename, chunk, sr)
             chunks.append(chunk_filename)
         return chunks
     except Exception as e:
@@ -101,45 +100,14 @@ def load_whisper_model(device):
 def load_diarization_pipeline(device):
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.0",
-        use_auth_token="HF_Token_Goes_Here"
+        use_auth_token="HF_Key_goes_here"
     ).to(torch.device(device))
     logger.info("Diarization pipeline loaded.")
     return pipeline
 
 # --------------------------------------------------------------------------
-# Custom Timeout Mechanism
+# Main Function for Transcription and Diarization with Progress Tracking
 # --------------------------------------------------------------------------
-class TimeoutError(Exception):
-    pass
-
-def timeout(seconds):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            result = [None]
-            exception = [None]
-
-            def target():
-                try:
-                    result[0] = func(*args, **kwargs)
-                except Exception as e:
-                    exception[0] = e
-
-            thread = threading.Thread(target=target)
-            thread.start()
-            thread.join(seconds)
-
-            if thread.is_alive():
-                raise TimeoutError(f"Function timed out after {seconds} seconds")
-            if exception[0] is not None:
-                raise exception[0]
-            return result[0]
-        return wrapper
-    return decorator
-
-# --------------------------------------------------------------------------
-# Main Function for Transcription and Diarization
-# --------------------------------------------------------------------------
-@timeout(3600)  # 1-hour timeout
 def transcribe_and_diarize(audio_file_path, device, whisper_model, diarization_pipeline):
     log_system_usage()
 
@@ -147,14 +115,14 @@ def transcribe_and_diarize(audio_file_path, device, whisper_model, diarization_p
     full_transcript = []
 
     try:
-        for chunk_path in chunks:
+        for chunk_path in tqdm(chunks, desc="Processing Chunks", unit="chunk"):
             logger.info(f"Processing chunk: {chunk_path}")
             audio = whisperx.load_audio(chunk_path)
             result = whisper_model.transcribe(audio, batch_size=16)
-
             model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
-            result = whisperx.align(result["segments"], model_a, metadata, audio, device)
-
+            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            del model_a
+            torch.cuda.empty_cache()
             diarization = diarization_pipeline(chunk_path)
 
             for segment in result["segments"]:
@@ -173,7 +141,6 @@ def transcribe_and_diarize(audio_file_path, device, whisper_model, diarization_p
         logger.error(f"Error during processing: {str(e)}")
         raise RuntimeError(f"Error during processing: {str(e)}")
     finally:
-        # Clean up chunk files
         for chunk_path in chunks:
             if os.path.exists(chunk_path):
                 os.remove(chunk_path)
@@ -205,23 +172,20 @@ def index():
         file.save(temp_path)
 
         try:
-            # Load models in the context of the request
             device = get_cuda_device()
             whisper_model = load_whisper_model(device)
             diarization_pipeline = load_diarization_pipeline(device)
 
-            # If the file is not a WAV, convert it first.
             processed_path = temp_path
             if not filename.lower().endswith(".wav"):
                 processed_path = convert_to_wav(temp_path)
 
             transcript = transcribe_and_diarize(processed_path, device, whisper_model, diarization_pipeline)
-        except TimeoutError:
-            transcript = "Processing timed out. Please try again with a smaller file."
-        except Exception as e:
+        except RuntimeError as e:
             transcript = f"An error occurred: {str(e)}"
+        except Exception as e:
+            transcript = f"An unexpected error occurred: {str(e)}"
         finally:
-            # Remove both the original and converted files if they exist.
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             if processed_path != temp_path and os.path.exists(processed_path):
