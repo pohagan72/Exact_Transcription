@@ -13,6 +13,7 @@ from pyannote.audio import Pipeline
 from pydub import AudioSegment  # For audio conversion
 from tqdm import tqdm  # Import tqdm for progress tracking
 import io  # Import the io module
+import ctranslate2
 
 # --------------------------------------------------------------------------
 # Logging Configuration
@@ -94,7 +95,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Model Loading and Reuse in Request Context
 # --------------------------------------------------------------------------
 def load_whisper_model(device):
-    model = whisperx.load_model("large-v2", device)
+    try:
+        # Attempt to load the model with float16 first
+        model = whisperx.load_model("large-v2", device, compute_type="float16")
+    except ValueError:
+        # If float16 is not supported, fall back to float32
+        logger.warning("Float16 computation is not supported. Using float32 instead.")
+        model = whisperx.load_model("large-v2", device, compute_type="float32")
     logger.info("Whisper model loaded.")
     return model
 
