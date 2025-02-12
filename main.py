@@ -180,6 +180,11 @@ def index():
             temp_audio_path = os.path.join(UPLOAD_FOLDER, filename)
             audio_file.save(temp_audio_path)
 
+            # Get the duration of the audio file
+            duration = librosa.get_duration(filename=temp_audio_path)
+            duration_minutes = int(duration // 60)
+            duration_seconds = int(duration % 60)
+
             device = get_cuda_device()
             whisper_model = load_whisper_model(device)
             diarization_pipeline = load_diarization_pipeline(device)
@@ -191,6 +196,7 @@ def index():
             transcript = transcribe_and_diarize(processed_audio_path, device, whisper_model, diarization_pipeline)
             session['transcript'] = transcript # Store the transcript in the session
 
+            flash(f"File '{filename}' selected. Duration: {duration_minutes} minutes {duration_seconds} seconds.", "info")
             return redirect(url_for('download_transcript'))
 
         except RuntimeError as e:
