@@ -14,6 +14,7 @@ from pydub import AudioSegment  # For audio conversion
 from tqdm import tqdm  # Import tqdm for progress tracking
 import io  # Import the io module
 import ctranslate2
+import uuid
 
 # --------------------------------------------------------------------------
 # Logging Configuration
@@ -194,7 +195,11 @@ def index():
                 processed_audio_path = convert_to_wav(temp_audio_path)
 
             transcript = transcribe_and_diarize(processed_audio_path, device, whisper_model, diarization_pipeline)
-            session['transcript'] = transcript # Store the transcript in the session
+            transcript_id = str(uuid.uuid4())
+            transcript_path = os.path.join(UPLOAD_FOLDER, f"{transcript_id}.txt")
+            with open(transcript_path, 'w') as f:
+                f.write(transcript)
+            session['transcript_id'] = transcript_id
 
             flash(f"File '{filename}' selected. Duration: {duration_minutes} minutes {duration_seconds} seconds.", "info")
             return redirect(url_for('download_transcript'))
@@ -216,18 +221,21 @@ def index():
 
 @app.route("/download")
 def download_transcript():
-    transcript = session.get('transcript', None)
-    if transcript:
-        transcript_io = io.BytesIO(transcript.encode('utf-8'))
-        return send_file(
-            transcript_io,
-            mimetype="text/plain",
-            as_attachment=True,
-            download_name="transcript.txt"
-        )
+    transcript_id = session.get('transcript_id', None)
+    if transcript_id:
+        transcript_path = os.path.join(UPLOAD_FOLDER, f"{transcript_id}.txt")
+        if os.path.exists(transcript_path):
+            return send_file(
+                transcript_path,
+                mimetype="text/plain",
+                as_attachment=True,
+                download_name="transcript.txt"
+            )
+        else:
+            flash("Transcript file not found.", "error")
     else:
         flash("No transcript available for download.", "error")
-        return redirect(url_for('index'))
+    return redirect(url_for('index'))
 
 # --------------------------------------------------------------------------
 # Run the Flask App
