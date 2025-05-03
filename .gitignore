@@ -1,0 +1,20 @@
+.env
+
+# Python virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary upload/processing folder
+temp_uploads/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files (add for your editor, e.g., VS Code)
+.vscode/
+# .idea/ (for PyCharm/IntelliJ)

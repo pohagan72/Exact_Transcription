@@ -1,0 +1,20 @@
+Flask
+huggingface_hub==0.28.1
+librosa
+numpy
+psutil
+pyannote.audio
+pyannote.core
+pyannote.database
+pyannote.metrics
+pyannote.pipeline
+pydub
+soundfile
+torch
+tqdm
+Werkzeug
+whisperx
+librosa
+python-dotenv
+
+# requires ffmpeg which is easiest with "winget install ffmpeg"
