@@ -17,4 +17,4 @@ whisperx
 librosa
 python-dotenv
 
-# requires ffmpeg which is easiest with "winget install ffmpeg"
+# requires ffmpeg which is easiest on Windows with "winget install ffmpeg"
