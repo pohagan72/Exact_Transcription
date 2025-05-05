@@ -1,20 +1,34 @@
-Flask
-huggingface_hub==0.28.1
+# Core Web Framework & Task Queue
+flask
+celery[redis]  # Installs celery and the redis driver - ESSENTIAL ADDITION
+gevent
+
+# ML / Audio Processing
+torch
+whisperx @ git+https://github.com/m-bain/whisperX.git@main # Using the recommended git version for now
+ctranslate2 # Recommended backend for whisperx/faster-whisper
+pyannote.audio>=3.0
+huggingface_hub # Unpinned version is generally safer
+
+# Audio Libraries
 librosa
-numpy
-psutil
-pyannote.audio
-pyannote.core
-pyannote.database
-pyannote.metrics
-pyannote.pipeline
 pydub
 soundfile
-torch
-tqdm
-Werkzeug
-whisperx
-librosa
-python-dotenv
+ffmpeg-python # Optional helper, but system ffmpeg is the main requirement
 
-# requires ffmpeg which is easiest on Windows with "winget install ffmpeg"
+# Utilities
+numpy
+psutil
+tqdm
+Werkzeug # Flask dependency
+python-dotenv
+redis # Explicitly listing redis client (often included by celery[redis] but doesn't hurt)
+
+# Potentially optional pyannote components (can keep or remove if cleaning up)
+# pyannote.core
+# pyannote.database
+# pyannote.metrics
+# pyannote.pipeline
+
+# System Requirements Comment (Keep this!)
+# requires system ffmpeg installation (e.g., (easiest for Windows) winget install ffmpeg, sudo apt install ffmpeg, brew install ffmpeg)
