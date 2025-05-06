@@ -2,8 +2,6 @@ steps:
 # 1. Build the container image using the Dockerfile
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/exact-transcription-repo/exact-transcription-app:$COMMIT_SHA', '.']
-  # Replace 'us-central1' with your Artifact Registry region
-  # Replace 'exact-transcription-repo' with your Artifact Registry repository name
 
 # 2. Push the container image to Artifact Registry
 - name: 'gcr.io/cloud-builders/docker'
@@ -15,30 +13,28 @@ steps:
   args:
     - 'run'
     - 'deploy'
-    - 'exact-transcription-service' # Choose your Cloud Run service name
+    - 'exact-transcription-service'
     - '--image'
     - 'us-central1-docker.pkg.dev/$PROJECT_ID/exact-transcription-repo/exact-transcription-app:$COMMIT_SHA'
     - '--region'
-    - 'us-central1'          # Choose the region for your Cloud Run service
+    - 'us-central1'
     - '--platform'
     - 'managed'
-    - '--port'               # Port your container listens on (matches Dockerfile EXPOSE/CMD)
+    - '--port'
     - '8080'
     # --- Secret Configuration ---
-    - '--update-secrets=HUGGING_FACE_HUB_TOKEN=huggingface-key:latest' # ENV_VAR=SECRET_NAME:VERSION
-    - '--update-secrets=FLASK_SECRET_KEY=flask-secret:latest' # Add if you put FLASK_SECRET_KEY in Secret Manager too
-    # --- Resource Allocation (CRITICAL for ML) ---
-    # Start high, monitor, and adjust down if possible. large-v2 needs significant RAM.
-    - '--memory=16Gi'        # Adjust based on model size and testing (e.g., 4Gi, 8Gi, 16Gi)
-    - '--cpu=4'              # Adjust CPU count (max depends on memory/region)
+    - '--update-secrets=HUGGING_FACE_HUB_TOKEN=huggingface-key:latest'
+    - '--update-secrets=FLASK_SECRET_KEY=flask-secret:latest'
+    - '--update-secrets=GOOGLE_API_KEY=gemini-api-key:latest' # New: Assumes secret named 'gemini-api-key'
+    # --- Environment Variables ---
+    - '--set-env-vars=GEMINI_MODEL=gemini-1.5-flash-latest' # New: Set Gemini model from .env
+    # --- Resource Allocation ---
+    - '--memory=16Gi'
+    - '--cpu=4'
     # --- Other Settings ---
-    - '--timeout=1200'       # Max request timeout (seconds) - Match or exceed Gunicorn timeout
-    - '--concurrency=4'      # How many requests per container instance (adjust based on memory/CPU/testing)
-    - '--allow-unauthenticated' # Remove this if you want to control access via IAM/IAP
-    # - '--service-account=YOUR_RUNTIME_SERVICE_ACCOUNT@...gserviceaccount.com' # Optional: Specify a dedicated SA
+    - '--timeout=1200'
+    - '--concurrency=4'
+    - '--allow-unauthenticated'
 
 images:
 - 'us-central1-docker.pkg.dev/$PROJECT_ID/exact-transcription-repo/exact-transcription-app:$COMMIT_SHA'
-
-# Increase the default build timeout if needed (e.g., for large downloads/installs)
-# timeout: 1200s

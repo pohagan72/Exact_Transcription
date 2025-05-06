@@ -1,34 +1,33 @@
+hf_ext
+
 # Core Web Framework & Task Queue
 flask
-celery[redis]  # Installs celery and the redis driver - ESSENTIAL ADDITION
+celery[redis]
 gevent
 
 # ML / Audio Processing
 torch
-whisperx @ git+https://github.com/m-bain/whisperX.git@main # Using the recommended git version for now
-ctranslate2 # Recommended backend for whisperx/faster-whisper
+whisperx @ git+https://github.com/m-bain/whisperX.git@main
+ctranslate2
 pyannote.audio>=3.0
-huggingface_hub # Unpinned version is generally safer
+huggingface_hub
 
 # Audio Libraries
 librosa
 pydub
 soundfile
-ffmpeg-python # Optional helper, but system ffmpeg is the main requirement
+ffmpeg-python
 
 # Utilities
 numpy
 psutil
 tqdm
-Werkzeug # Flask dependency
+Werkzeug
 python-dotenv
-redis # Explicitly listing redis client (often included by celery[redis] but doesn't hurt)
+redis
 
-# Potentially optional pyannote components (can keep or remove if cleaning up)
-# pyannote.core
-# pyannote.database
-# pyannote.metrics
-# pyannote.pipeline
+# Google Generative AI
+google-generativeai
 
 # System Requirements Comment (Keep this!)
 # requires system ffmpeg installation (e.g., (easiest for Windows) winget install ffmpeg, sudo apt install ffmpeg, brew install ffmpeg)

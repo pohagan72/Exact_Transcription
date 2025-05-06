@@ -3,103 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Transcription</title>
+    <title>Audio Transcription & Summary</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* ... (keep existing styles) ... */
-        :root { /* Define your colors */ }
-        body { /* styles */ }
-        .container { /* styles */ }
-        .card { /* styles */ }
-        /* ... other styles ... */
-
-        /* Add styles for the progress area */
-        #progressArea {
-            margin-top: 20px;
+        :root {
+            --primary-1: #0d1b2a; /* Dark Blue */
+            --primary-2: #1b263b; /* Medium Dark Blue */
+            --primary-3: #415a77; /* Light Blue */
+            --accent-1: #778da9;  /* Grey Blue */
+            --text-light: #e0e1dd; /* Light Beige/Off-white */
+            --success-green: #28a745;
+            --danger-red: #dc3545;
+            --warning-orange: #ffc107;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--primary-1);
+            color: var(--text-light);
+            padding-top: 30px;
+            padding-bottom: 30px;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start; /* Align to top for longer content */
+            justify-content: center;
+        }
+        .container {
+            max-width: 750px; /* Slightly wider for summary */
+            width: 95%;
+            background-color: var(--primary-2);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            margin-bottom: 30px; /* Space at bottom */
+        }
+        .app-header { /* Replaces .card-header for semantic clarity */
+            background-color: var(--primary-3);
+            color: var(--text-light);
+            font-size: 1.6em;
+            font-weight: 700;
+            text-align: center;
+            border-bottom: 2px solid var(--accent-1);
             padding: 20px;
-            background-color: var(--primary-3); /* Use your theme color */
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            margin-bottom: 25px;
+        }
+        .app-body { /* Replaces .card-body */
+            padding: 0 10px; /* Reduce padding if header has enough */
+        }
+        .upload-label {
+            display: block;
+            margin-bottom: 15px;
+            font-weight: 500;
+            font-size: 1.1em;
+            color: var(--text-light);
+        }
+        #audio_file {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: 2px dashed var(--accent-1);
+            background-color: var(--primary-1);
+            color: var(--text-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+        #audio_file:hover {
+            border-color: var(--text-light);
+            background-color: var(--primary-3);
+        }
+        .file-info {
+            margin-top: 10px;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+            color: var(--accent-1);
+            min-height: 20px; /* Prevent layout shift */
+        }
+        .btn-container {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .btn-submit-process { /* Specific class for the main button */
+            background-color: var(--primary-3);
+            border: 2px solid var(--accent-1);
+            color: var(--text-light);
+            padding: 12px 25px;
+            font-size: 1.15em;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+        }
+        .btn-submit-process:hover:not(:disabled) {
+            background-color: var(--accent-1);
+            border-color: var(--text-light);
+            transform: translateY(-2px);
+        }
+        .btn-submit-process:disabled {
+            background-color: #5a6268;
+            border-color: #4f555a;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .spinner-border-sm {
+            margin-right: 8px;
+        }
+        #progressArea {
+            margin-top: 25px;
+            padding: 25px;
+            background-color: var(--primary-3);
             border-radius: 10px;
             text-align: center;
-            display: none; /* Initially hidden */
+            display: none;
+        }
+        #progressTitle, #downloadTitle {
+            color: var(--text-light);
+            font-weight: 700;
+            font-size: 1.3em;
+            margin-bottom: 18px;
         }
         #statusText {
             font-weight: 500;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
             font-size: 1.1em;
+            color: var(--text-light);
+            min-height: 24px; /* Prevent layout shifts */
         }
-        .progress { /* Bootstrap progress bar */
-            height: 25px;
-            font-size: 0.9rem;
+        .progress {
+            height: 28px;
+            font-size: 0.95rem;
+            background-color: var(--primary-1);
+            border-radius: 8px;
+            overflow: hidden; /* Ensure progress bar stays within rounded corners */
         }
+        .progress-bar {
+            background-color: var(--accent-1);
+            transition: width 0.4s ease-in-out; /* Smooth progress bar transition */
+        }
+        .progress-bar.bg-success { background-color: var(--success-green) !important; }
+        .progress-bar.bg-danger { background-color: var(--danger-red) !important; }
+
         #downloadArea {
-             margin-top: 20px;
+             margin-top: 25px;
+             padding: 20px;
+             background-color: var(--primary-3);
+             border-radius: 10px;
              text-align: center;
-             display: none; /* Initially hidden */
+             display: none;
+        }
+        .download-buttons-container {
+            margin-bottom: 20px;
         }
         .btn-download {
-            background-color: #28a745; /* Green for success/download */
+            background-color: var(--success-green);
             border: 2px solid white;
-             padding: 12px 24px;
-            font-size: 16px;
+            padding: 12px 24px;
+            font-size: 1em;
             font-weight: bold;
-            border-radius: 10px;
-            transition: background-color 0.3s ease;
-            color: white;
-            text-decoration: none; /* If using <a> tag */
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            color: white !important; /* Ensure text is white */
+            text-decoration: none;
+            margin: 8px;
+            display: inline-block; /* For proper margin */
         }
          .btn-download:hover {
             background-color: #218838;
+            transform: translateY(-2px);
+            text-decoration: none;
         }
-        /* Style for error messages */
         .error-message {
-            color: #dc3545; /* Bootstrap danger color */
+            color: var(--danger-red);
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 15px;
+            background-color: rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--danger-red);
+        }
+        #summaryPreviewContainer {
+            margin-top: 20px;
+            display: none; /* Initially hidden */
+        }
+        #summaryPreviewTitle {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+        #summaryPreview {
+            padding: 15px;
+            background-color: var(--primary-1);
+            border: 1px solid var(--accent-1);
+            border-radius: 8px;
+            text-align: left;
+            white-space: pre-wrap;
+            color: var(--text-light);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            max-height: 350px;
+            overflow-y: auto;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <div class="card-header">
-                Audio Transcription Service
+        <div class="app-header">
+            Audio Transcription & Summarization Service
+        </div>
+        <div class="app-body">
+            <!-- Upload Form Area -->
+            <div id="uploadArea">
+                <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                     <label for="audio_file" class="upload-label">
+                        Step 1: Choose Audio File
+                        <input type="file" name="audio_file" id="audio_file" accept=".mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" required>
+                     </label>
+                     <div id="fileInfo" class="file-info">No file selected. Maximum 2GB.</div>
+                     <div class="btn-container">
+                        <button type="submit" id="submitBtn" class="btn-submit-process" disabled>Step 2: Upload and Process</button>
+                     </div>
+                </form>
             </div>
-            <div class="card-body">
-                <!-- Upload Form Area -->
-                <div id="uploadArea">
-                    <form id="uploadForm" method="POST" enctype="multipart/form-data">
-                         <label for="audio_file" class="upload-label">
-                            Step 1: Choose Audio File
-                            <input type="file" name="audio_file" id="audio_file" accept=".mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" required>
-                         </label>
-                         <div id="fileInfo" class="file-info">No file selected.</div>
-                         <div class="btn-container">
-                            <button type="submit" id="submitBtn" class="btn btn-primary" disabled>Step 2: Upload and Transcribe</button>
-                         </div>
-                    </form>
-                </div>
 
-                <!-- Progress Area -->
-                <div id="progressArea">
-                    <h5 id="progressTitle">Step 3: Processing Audio</h5>
-                    <div id="statusText">Initializing...</div>
-                    <div class="progress" role="progressbar" aria-label="Transcription Progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">0%</div>
+            <!-- Progress Area -->
+            <div id="progressArea">
+                <h5 id="progressTitle">Step 3: Processing Audio</h5>
+                <div id="statusText">Initializing...</div>
+                <div class="progress" role="progressbar" aria-label="Processing Progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">0%</div>
+                </div>
+                <div id="errorMessage" class="error-message" style="display:none;"></div>
+            </div>
+
+            <!-- Download Area -->
+            <div id="downloadArea">
+                 <h5 id="downloadTitle">Step 4: Results Ready</h5>
+                 <p id="downloadMessage">Your transcript and summary are ready!</p>
+                 <div class="download-buttons-container">
+                    <a href="#" id="downloadTranscriptLink" class="btn btn-download" download="transcript.txt" style="display:none;">Download Transcript</a>
+                    <a href="#" id="downloadSummaryLink" class="btn btn-download" download="summary.txt" style="display:none;">Download Summary</a>
+                 </div>
+                 <div id="summaryPreviewContainer">
+                    <div id="summaryPreviewTitle">Summary Preview:</div>
+                    <div id="summaryPreview">
+                        <!-- Summary content will be injected here -->
                     </div>
-                    <div id="errorMessage" class="error-message"></div> <!-- For displaying errors -->
-                </div>
-
-                <!-- Download Area -->
-                <div id="downloadArea">
-                     <h5 id="downloadTitle">Step 4: Download Complete</h5>
-                     <p>Your transcript is ready!</p>
-                     <a href="#" id="downloadLink" class="btn btn-download" download="transcript.txt">Download Transcript</a>
-                </div>
-
-            </div> <!-- End Card Body -->
-        </div> <!-- End Card -->
-    </div> <!-- End Container -->
+                 </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const uploadForm = document.getElementById('uploadForm');
@@ -114,43 +270,79 @@
         const statusText = document.getElementById('statusText');
         const progressBar = document.getElementById('progressBar');
         const errorMessage = document.getElementById('errorMessage');
-        const downloadLink = document.getElementById('downloadLink');
+        
+        const downloadTranscriptLink = document.getElementById('downloadTranscriptLink');
+        const downloadSummaryLink = document.getElementById('downloadSummaryLink');
+        const summaryPreview = document.getElementById('summaryPreview');
+        const summaryPreviewContainer = document.getElementById('summaryPreviewContainer');
+        const downloadMessage = document.getElementById('downloadMessage');
+
 
         let currentTaskId = null;
         let eventSource = null;
 
-        // --- Client-side File Info & Validation ---
+        function resetUIForNewUpload() {
+            uploadArea.style.display = 'block';
+            progressArea.style.display = 'none';
+            downloadArea.style.display = 'none';
+            
+            audioFile.value = ''; // Clear the file input
+            fileInfo.textContent = 'No file selected. Maximum 2GB.';
+            fileInfo.style.color = 'var(--accent-1)';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Step 2: Upload and Process';
+
+            statusText.textContent = 'Initializing...';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.classList.remove('bg-danger', 'bg-success');
+            progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+            errorMessage.textContent = '';
+            errorMessage.style.display = 'none';
+
+            downloadTranscriptLink.style.display = 'none';
+            downloadSummaryLink.style.display = 'none';
+            summaryPreviewContainer.style.display = 'none';
+            summaryPreview.textContent = '';
+
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            currentTaskId = null;
+        }
+
+
         audioFile.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
-                // Basic Type Check (Supplement to 'accept' attribute)
-                const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/x-m4a']; // Add more specific types if needed
-                if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp3|mp4|mpeg|mpga|m4a|wav|webm)$/i)) {
-                    fileInfo.textContent = `Error: Invalid file type (${file.type || 'unknown'}). Allowed: MP3, MP4, M4A, WAV, WEBM`;
-                    fileInfo.style.color = '#dc3545'; // Error color
+                const allowedTypesSimple = /\.(mp3|mp4|mpeg|mpga|m4a|wav|webm)$/i;
+                const allowedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/x-m4a', 'audio/mp3', 'video/mp4'];
+
+                if (!allowedTypesSimple.test(file.name) && !allowedMimeTypes.includes(file.type)) {
+                    fileInfo.textContent = `Error: Invalid file type (${file.type || 'unknown extension'}). Allowed: MP3, MP4, M4A, WAV, WEBM, MPEG.`;
+                    fileInfo.style.color = 'var(--danger-red)';
                     submitBtn.disabled = true;
                     return;
                 }
 
-                // Size Check (Example: 2GB limit matching backend)
-                const maxSize = 2 * 1024 * 1024 * 1024;
+                const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
                 if (file.size > maxSize) {
-                     fileInfo.textContent = `Error: File too large (${(file.size / 1024**3).toFixed(2)} GB). Maximum size: 2 GB`;
-                     fileInfo.style.color = '#dc3545';
+                     fileInfo.textContent = `Error: File too large (${(file.size / (1024**3)).toFixed(2)} GB). Maximum size: 2 GB.`;
+                     fileInfo.style.color = 'var(--danger-red)';
                      submitBtn.disabled = true;
                      return;
                 }
-
-                // Display File Info & Enable Button
-                fileInfo.style.color = 'white'; // Reset color
-                fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024**2).toFixed(2)} MB)`;
+                fileInfo.style.color = 'var(--accent-1)';
+                fileInfo.textContent = `Selected: ${file.name} (${(file.size / (1024**2)).toFixed(2)} MB)`;
                 submitBtn.disabled = false;
+                submitBtn.textContent = 'Step 2: Upload and Process';
 
                 // Get Duration (Client-side estimate)
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const audio = new Audio();
-                    audio.src = e.target.result; // Use Data URL
+                    audio.src = e.target.result;
                     audio.onloadedmetadata = function() {
                         const duration = audio.duration;
                         if (isFinite(duration)) {
@@ -158,41 +350,44 @@
                             const seconds = Math.floor(duration % 60);
                             fileInfo.textContent += ` | Duration: ~${minutes}m ${seconds}s`;
                         }
-                         URL.revokeObjectURL(audio.src); // Clean up object URL if used instead of Data URL
+                         URL.revokeObjectURL(audio.src);
                     };
                      audio.onerror = function() {
                         console.warn("Could not determine audio duration client-side.");
                         URL.revokeObjectURL(audio.src);
                     };
                 };
-                 reader.readAsDataURL(file); // Read file for duration check
-
+                reader.readAsDataURL(file);
             } else {
-                fileInfo.textContent = 'No file selected.';
+                fileInfo.textContent = 'No file selected. Maximum 2GB.';
+                fileInfo.style.color = 'var(--accent-1)';
                 submitBtn.disabled = true;
             }
         });
 
-        // --- Form Submission ---
         uploadForm.addEventListener('submit', function(event) {
-            event.preventDefault(); // Stop default form submission
+            event.preventDefault();
+            
+            // Reset parts of UI if a previous run happened, but keep file info
+            progressArea.style.display = 'none';
+            downloadArea.style.display = 'none';
+            errorMessage.textContent = '';
+            errorMessage.style.display = 'none';
+
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
-            errorMessage.textContent = ''; // Clear previous errors
-
             const formData = new FormData(uploadForm);
 
-            fetch('/upload', { // Send to the new upload endpoint
+            fetch('/upload', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
                 if (!response.ok) {
-                    // Handle HTTP errors (e.g., 500 Internal Server Error)
                     return response.json().then(err => { throw new Error(err.error || `Server error: ${response.status}`) });
                 }
-                if (response.status === 202) { // 202 Accepted - Task started
+                if (response.status === 202) {
                      return response.json();
                 } else {
                     throw new Error('Unexpected response from server.');
@@ -202,11 +397,18 @@
                 if (data.task_id) {
                     currentTaskId = data.task_id;
                     console.log('Task started with ID:', currentTaskId);
-                    // Switch UI
                     uploadArea.style.display = 'none';
                     progressArea.style.display = 'block';
-                    downloadArea.style.display = 'none'; // Ensure download area is hidden
-                    // Start listening for progress updates
+                    
+                    // Ensure progress UI is reset for the new task
+                    statusText.textContent = 'Initializing...';
+                    progressBar.style.width = '0%';
+                    progressBar.textContent = '0%';
+                    progressBar.classList.remove('bg-danger', 'bg-success');
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                    errorMessage.textContent = '';
+                    errorMessage.style.display = 'none';
+                    
                     startListeningForProgress(currentTaskId);
                 } else {
                     throw new Error(data.error || 'Failed to start processing task.');
@@ -215,64 +417,60 @@
             .catch(error => {
                 console.error('Upload Error:', error);
                 errorMessage.textContent = `Upload failed: ${error.message}`;
-                // Re-enable button and clear spinner if upload fails
+                errorMessage.style.display = 'block';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Step 2: Upload and Transcribe';
-                // Show error in the progress area if it's visible, otherwise maybe use fileInfo area
-                if (progressArea.style.display === 'block') {
-                    statusText.textContent = 'Error';
-                     progressBar.style.width = '100%';
-                     progressBar.classList.add('bg-danger'); // Make progress bar red
-                } else {
-                     fileInfo.textContent = `Upload failed: ${error.message}`;
-                     fileInfo.style.color = '#dc3545';
-                }
+                submitBtn.textContent = 'Step 2: Upload and Process';
+                // Keep uploadArea visible on upload error
             });
         });
 
-        // --- Progress Monitoring (SSE) ---
         function startListeningForProgress(taskId) {
             console.log(`Connecting to SSE stream for task ${taskId}...`);
-             // Close previous connection if any
             if (eventSource) {
                 eventSource.close();
             }
-
-            eventSource = new EventSource(`/stream-progress/${taskId}`); // Connect to the SSE endpoint
-
+            eventSource = new EventSource(`/stream-progress/${taskId}`);
             eventSource.onmessage = function(event) {
-                console.log("SSE Message:", event.data);
-                const data = JSON.parse(event.data);
-                updateProgressUI(data); // Update UI with received data
+                // console.log("SSE Message:", event.data); // For debugging
+                try {
+                    const data = JSON.parse(event.data);
+                    updateProgressUI(data);
+                } catch (e) {
+                    console.error("Failed to parse SSE data:", e, event.data);
+                    statusText.textContent = "Error receiving progress updates.";
+                }
             };
-
             eventSource.onerror = function(error) {
                 console.error('SSE Error:', error);
-                statusText.textContent = 'Connection lost. Trying to reconnect...';
-                // Optionally stop listening after too many errors or task completion
-                // eventSource.close();
-                // Maybe switch to polling as a fallback?
+                // Only update status if task is not already completed/failed
+                if (progressBar.style.width !== '100%' && !progressBar.classList.contains('bg-danger') && !progressBar.classList.contains('bg-success')) {
+                    statusText.textContent = 'Connection issue. Retrying...';
+                }
+                // Consider closing eventSource if it's a persistent error and task isn't active
+                // e.g. if(error.target.readyState === EventSource.CLOSED) eventSource.close();
             };
-
-             // Optional: Handle connection opening
-             eventSource.onopen = function() {
+            eventSource.onopen = function() {
                 console.log("SSE connection opened.");
-                 // Reset status if it was showing connection error
-                 if (statusText.textContent.startsWith('Connection lost')) {
+                 if (statusText.textContent.startsWith('Connection issue')) {
                      statusText.textContent = 'Reconnected. Resuming...';
                  }
             };
         }
 
-        // --- Update UI based on Progress Data ---
         function updateProgressUI(data) {
             const state = data.state;
-            const info = data.info || {}; // Metadata from backend
-            const status = info.status || state; // Use specific status if available
-            let percent = parseInt(info.percent, 10) || 0;
+            const info = data.info || {}; // Ensure info is an object
+            const status = info.status || state;
+            let percent = parseInt(info.percent, 10);
+            if (isNaN(percent)) percent = 0;
 
-            errorMessage.textContent = ''; // Clear errors on new update unless it's a failure
-            progressBar.classList.remove('bg-danger'); // Remove error styling
+
+            // Clear previous general error message on new update, unless it's a FAILURE state
+            if (state !== 'FAILURE') {
+                errorMessage.textContent = '';
+                errorMessage.style.display = 'none';
+            }
+            progressBar.classList.remove('bg-danger', 'bg-success'); // Reset color classes
 
             statusText.textContent = status;
 
@@ -281,62 +479,128 @@
                 progressBar.style.width = percent + '%';
                 progressBar.textContent = percent + '%';
                 progressBar.setAttribute('aria-valuenow', percent);
+                if (!progressBar.classList.contains('progress-bar-striped')) {
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                }
             } else if (state === 'SUCCESS') {
                 progressBar.style.width = '100%';
                 progressBar.textContent = '100%';
                 progressBar.setAttribute('aria-valuenow', 100);
+                progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                progressBar.classList.add('bg-success');
                 statusText.textContent = info.status || 'Processing Complete!';
-                 // Prepare download link
+                
+                const baseName = info.original_base_filename || "audio_file"; // Fallback
+
                 if (info.result_filename) {
-                    downloadLink.href = `/download/${info.result_filename}`;
-                    progressArea.style.display = 'none'; // Hide progress
-                    downloadArea.style.display = 'block'; // Show download button
+                    downloadTranscriptLink.href = `/download/${info.result_filename}`;
+                    downloadTranscriptLink.download = `transcript_${baseName}.txt`;
+                    downloadTranscriptLink.style.display = 'inline-block';
                 } else {
-                    statusText.textContent = 'Processing complete, but result file info missing.';
+                    downloadTranscriptLink.style.display = 'none';
                 }
-                if (eventSource) eventSource.close(); // Stop listening
+
+                let summaryAvailable = false;
+                if (info.summary_filename) {
+                    downloadSummaryLink.href = `/download/${info.summary_filename}`;
+                    downloadSummaryLink.download = `summary_${baseName}.txt`;
+                    downloadSummaryLink.style.display = 'inline-block';
+                    summaryAvailable = true; // Can download summary file
+                } else {
+                    downloadSummaryLink.style.display = 'none';
+                }
+
+                if (info.summary_content && info.summary_content.trim() !== "" && 
+                    !info.summary_content.startsWith("Summarization skipped") &&
+                    !info.summary_content.startsWith("Summarization disabled") &&
+                    !info.summary_content.startsWith("Summarization failed") &&
+                    !info.summary_content.startsWith("Summarization was not attempted")) {
+                    summaryPreview.textContent = info.summary_content;
+                    summaryPreviewContainer.style.display = 'block';
+                    summaryAvailable = true; // Summary content is good for preview
+                } else if (info.summary_content) { // Show message if summarization had known issues but content exists
+                    summaryPreview.textContent = info.summary_content; 
+                    summaryPreviewContainer.style.display = 'block';
+                } else {
+                    summaryPreviewContainer.style.display = 'none';
+                }
+                
+                if (info.result_filename || summaryAvailable) {
+                    downloadMessage.textContent = "Your results are ready!";
+                } else {
+                    downloadMessage.textContent = "Processing complete, but some results might be missing.";
+                }
+
+
+                progressArea.style.display = 'none';
+                downloadArea.style.display = 'block';
+                if (eventSource) { eventSource.close(); eventSource = null; }
+
+                // Add a button to allow another upload
+                let newUploadBtn = document.getElementById('newUploadBtn');
+                if (!newUploadBtn) {
+                    newUploadBtn = document.createElement('button');
+                    newUploadBtn.id = 'newUploadBtn';
+                    newUploadBtn.textContent = 'Process Another File';
+                    newUploadBtn.className = 'btn-submit-process'; // Reuse style
+                    newUploadBtn.style.marginTop = '20px';
+                    newUploadBtn.onclick = resetUIForNewUpload;
+                    downloadArea.appendChild(newUploadBtn);
+                }
+
 
             } else if (state === 'FAILURE') {
-                statusText.textContent = `Error: ${info.status || 'Processing failed'}`;
-                errorMessage.textContent = `Details: ${info.status || 'Unknown error'}`;
+                const errStatus = info.status || 'Processing failed';
+                const errDetails = info.exc_message || info.status || 'Unknown error details';
+                statusText.textContent = `Error: ${errStatus}`;
+                errorMessage.textContent = `Details: ${errDetails}`;
+                errorMessage.style.display = 'block';
+
                 progressBar.style.width = '100%';
-                progressBar.classList.add('bg-danger'); // Make bar red
+                progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated', 'bg-success');
+                progressBar.classList.add('bg-danger');
                 progressBar.textContent = 'Failed';
-                 progressBar.setAttribute('aria-valuenow', 100); // Visually full, but red
-                if (eventSource) eventSource.close(); // Stop listening
+                progressBar.setAttribute('aria-valuenow', 100);
+                if (eventSource) { eventSource.close(); eventSource = null; }
+
+                // Add a button to allow another upload even on failure
+                let newUploadBtnFail = document.getElementById('newUploadBtn');
+                if (!newUploadBtnFail) { // Check if it wasn't added by SUCCESS path (unlikely here)
+                    newUploadBtnFail = document.createElement('button');
+                    newUploadBtnFail.id = 'newUploadBtn'; // Use same ID for simplicity
+                    newUploadBtnFail.textContent = 'Try Another File';
+                    newUploadBtnFail.className = 'btn-submit-process';
+                    newUploadBtnFail.style.marginTop = '20px';
+                    newUploadBtnFail.onclick = resetUIForNewUpload;
+                    // Add to progressArea if downloadArea is not shown on failure
+                    progressArea.appendChild(newUploadBtnFail); 
+                }
+
 
             } else if (state === 'PENDING') {
                  progressBar.style.width = '0%';
                  progressBar.textContent = '0%';
                  progressBar.setAttribute('aria-valuenow', 0);
                  statusText.textContent = info.status || 'Waiting in queue...';
+                 if (!progressBar.classList.contains('progress-bar-striped')) {
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                 }
             } else { // Other states like STARTED, RETRY
-                statusText.textContent = info.status || state; // Display the state name
-                 // Keep progress bar where it was or reset? Depends on desired UX.
+                statusText.textContent = info.status || state;
+                if (percent > 0 && percent < 100) { // If percent is available and meaningful
+                    progressBar.style.width = percent + '%';
+                    progressBar.textContent = percent + '%';
+                }
+                if (!progressBar.classList.contains('progress-bar-striped')) {
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                }
             }
         }
 
-        // --- Optional: Polling Fallback (if SSE isn't feasible/fails) ---
-        // function pollTaskStatus(taskId) {
-        //     const interval = setInterval(() => {
-        //         fetch(`/status/${taskId}`)
-        //             .then(response => response.json())
-        //             .then(data => {
-        //                 updateProgressUI(data);
-        //                 if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
-        //                     clearInterval(interval); // Stop polling
-        //                 }
-        //             })
-        //             .catch(error => {
-        //                 console.error('Polling Error:', error);
-        //                 statusText.textContent = 'Error checking status.';
-        //                 // clearInterval(interval); // Optional: stop polling on error
-        //             });
-        //     }, 2000); // Poll every 2 seconds
-        // }
+        // Initial UI state setup
+        resetUIForNewUpload(); // Call once on page load to set initial state
 
     </script>
-    <!-- Optional: Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

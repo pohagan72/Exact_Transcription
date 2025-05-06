@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: "redis:7-alpine"
+    ports:
+      - "6379:6379"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - ./temp_uploads:/app/temp_uploads
+    env_file:
+      - ./.env
+    environment:
+      - FLASK_DEBUG=0 # Set to 0 to use gevent, 1 for Flask dev server.
+                      # If .env also sets FLASK_DEBUG, the .env value might take precedence
+                      # depending on Docker Compose version and specific loading order.
+                      # Explicitly setting it here ensures gevent for this service when not debugging.
+      - PORT=8080
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./temp_uploads:/app/temp_uploads
+    env_file:
+      - ./.env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: celery -A main.celery worker -l info -P gevent --concurrency=1
